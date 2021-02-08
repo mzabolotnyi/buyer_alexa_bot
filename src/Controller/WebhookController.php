@@ -2,58 +2,131 @@
 
 namespace App\Controller;
 
+use App\Entity\Conversation;
+use App\Service\ConversationManager;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Telegram\Bot\Api;
 use Telegram\Bot\Keyboard\Keyboard;
-use Telegram\Bot\Objects\Poll;
-use Telegram\Bot\Objects\PollOption;
 
 /**
  * @Route("")
  */
 class WebhookController extends AbstractController
 {
+    /** @var Api */
+    private $bot;
+
+    public function __construct()
+    {
+        $this->bot = new Api(getenv('TELEGRAM_TOKEN'));
+    }
+
     /**
      * @Route("")
+     *
+     * @param EntityManagerInterface $em
+     * @param ConversationManager $conversationManager
+     * @return Response
      */
-    public function index()
+    public function index(EntityManagerInterface $em, ConversationManager $conversationManager): Response
     {
-        $bot = new Api(getenv('TELEGRAM_TOKEN'));
-        $result = $bot->getWebhookUpdate();
+        try {
 
-        $text = $result->getMessage()->text;
-        $chatId = $result->getMessage()->chat->id;
-//        $callback = $result-
+            $update = $this->bot->getWebhookUpdate();
+            $type = $update->detectType();
+            $message = $update->getMessage();
+            $messageId = $message->messageId;
+            $chatId = $message->chat->id;
+            $params = ['chat_id' => $chatId];
 
-        $params = [
-            'chat_id' => $chatId
-        ];
+            if ($type === 'message') {
 
-        if ($text == '/start') {
+                $text = $message->text;
 
-            $params['text'] = 'Send me a link';
-            $bot->sendMessage($params);
+                if ($text == '/start') {
 
-        } elseif (strpos($text, 'zara.com') !== false) {
+                    $params['text'] = 'Send me a link';
+                    $conversationManager->finish($chatId);
 
-            $colors = ['Black', 'Ecru'];
-            $keyboard = Keyboard::make()->inline();
-            $callbackBase = [
-                'url' => $text,
-                'step' => 'color'
-            ];
+                } elseif (strpos($text, 'zara.com') !== false) {
 
-            foreach ($colors as $color) {
-                $callbackData = json_encode(array_merge($callbackBase, ['color' => $color]));
-                $keyboard->row(Keyboard::inlineButton(['text' => $color, 'callback_data' => $callbackData]));
+                    $conversation = $conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKER);
+                    $conversation->setParam('link', $text);
+
+                    $colors = ['Black', 'Ecru'];
+                    $keyboard = Keyboard::make()->inline();
+
+                    foreach ($colors as $color) {
+                        $keyboard->row(Keyboard::inlineButton(['text' => $color, 'callback_data' => $color]));
+                    }
+
+                    $params['text'] = 'Choose a color';
+                    $params['reply_markup'] = $keyboard;
+
+                } else {
+                    $params['text'] = 'I don\'t know this command yet =(';
+                }
+
+            } elseif ($type === 'callback_query') {
+
+                $conversation = $conversationManager->current($chatId);
+
+                if ($conversation !== null) {
+
+                    $callbackData = $update->callbackQuery->data;
+
+                    if ($conversation->checkType(Conversation::TYPE_AVAILABILITY_TRACKER)) {
+                        switch ($conversation->getStep()) {
+                            case 1:
+
+                                $conversation->setParam('color', $callbackData);
+                                $conversation->setStep(2);
+
+                                $sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+                                $keyboard = Keyboard::make()->inline();
+
+                                foreach ($sizes as $size) {
+                                    $keyboard->row(Keyboard::inlineButton(['text' => $size, 'callback_data' => $size]));
+                                }
+
+                                $params['text'] = 'Choose a size';
+                                $params['reply_markup'] = $keyboard;
+
+                                $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
+                                break;
+
+                            case 2:
+
+                                $conversation->setParam('size', $callbackData);
+                                $conversation->setStep(3);
+
+                                //TODO add to jobs table
+
+                                $params['text'] = sprintf(
+                                    "Availability tracker started for\n\nLink: %s\nColor:  %s\nSize:  %s",
+                                    $conversation->getParam('link'),
+                                    $conversation->getParam('color'),
+                                    $conversation->getParam('size')
+                                );
+
+                                $conversationManager->finish($chatId);
+                                $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
+                                break;
+                        }
+                    }
+                }
             }
 
-            $params['text'] = 'Choose a color';
-            $params['reply_markup'] = $keyboard;
+            $this->bot->sendMessage($params);
+            $em->flush();
 
-            $bot->sendMessage($params);
+        } catch (\Throwable $e) {
+            //$params['text'] = 'Something went wrong. Please try again';
+            $params['text'] = "Error: {$e->getMessage()}";
+            $this->bot->sendMessage($params);
         }
 
         return new Response();
