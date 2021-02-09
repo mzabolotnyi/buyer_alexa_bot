@@ -30,6 +30,11 @@ class Conversation
     private $chatId;
 
     /**
+     * @ORM\Column(name="`from`", type="string", length=500, nullable=true)
+     */
+    private $from;
+
+    /**
      * @ORM\Column(type="integer")
      */
     private $step;
@@ -52,6 +57,18 @@ class Conversation
     public function setChatId(string $chatId): self
     {
         $this->chatId = $chatId;
+
+        return $this;
+    }
+
+    public function getFrom(): ?string
+    {
+        return $this->from;
+    }
+
+    public function setFrom(?string $from): self
+    {
+        $this->from = $from;
 
         return $this;
     }

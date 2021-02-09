@@ -55,7 +55,7 @@ class WebhookController extends AbstractController
             $messageId = $message->messageId;
             $chat = $message->chat;
             $chatId = $chat->id;
-            $from = ['username' => $chat->username, 'firstName' => $chat->firstName, 'lastName' => $chat->lastName];
+            $from = "{$chat->firstName} {$chat->lastName} {$chat->username}";
             $params = ['chat_id' => $chatId];
 
             if ($type === 'message') {
@@ -74,7 +74,7 @@ class WebhookController extends AbstractController
                 } elseif ($this->trackingManager->hasParser($text)) {
 
                     $conversation = $this->conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKING);
-                    $conversation->setParam('from', $from);
+                    $conversation->setFrom($from);
                     $conversation->setParam('link', $text);
 
                     $colors = $this->trackingManager->getColors($conversation);
@@ -164,7 +164,7 @@ class WebhookController extends AbstractController
         $messageId = $message->messageId;
         $chat = $message->chat;
         $chatId = $chat->id;
-        $from = ['username' => $chat->username, 'firstName' => $chat->firstName, 'lastName' => $chat->lastName];
+        $from = "{$chat->firstName} {$chat->lastName} {$chat->username}";
 
         $conversation = $this->conversationManager->current($chatId);
 
@@ -190,7 +190,7 @@ class WebhookController extends AbstractController
                         $conversation->setStep(3);
 
                         $tracking = $this->trackingManager->startTracking($conversation);
-                        $tracking->setParam('from', $from);
+                        $tracking->setFrom($from);
 
                         $params['text'] = sprintf(
                             "Tracking was started\n\nLink: %s\nColor:  %s\nSize:  %s",

@@ -14,7 +14,6 @@ use Doctrine\ORM\Mapping as ORM;
 class Tracking
 {
     use TimestampableEntity;
-    use HasParams;
 
     /**
      * @ORM\Id
@@ -27,6 +26,11 @@ class Tracking
      * @ORM\Column(type="string", length=255)
      */
     private $chatId;
+
+    /**
+     * @ORM\Column(name="`from`", type="string", length=500, nullable=true)
+     */
+    private $from;
 
     /**
      * @ORM\Column(type="string", length=500)
@@ -71,6 +75,18 @@ class Tracking
     public function setChatId(string $chatId): self
     {
         $this->chatId = $chatId;
+
+        return $this;
+    }
+
+    public function getFrom(): ?string
+    {
+        return $this->from;
+    }
+
+    public function setFrom(?string $from): self
+    {
+        $this->from = $from;
 
         return $this;
     }
