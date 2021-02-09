@@ -6,6 +6,9 @@
 parameters:
 
 services:
+    _instanceof:
+        App\Service\AvailabilityTracker\AvailabilityTrackerInterface:
+            tags: [ app.availability_tracker.tracker ]
     # default configuration for services in *this* file
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
@@ -29,3 +32,6 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+    App\Service\AvailabilityTracker\TrackerManager:
+        arguments:
+            - !tagged 'app.availability_tracker.tracker'

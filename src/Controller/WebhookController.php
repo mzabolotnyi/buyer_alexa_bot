@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Conversation;
+use App\Service\AvailabilityTracker\TrackerManager;
+use App\Service\AvailabilityTracker\ZaraTracker;
 use App\Service\ConversationManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -29,9 +31,10 @@ class WebhookController extends AbstractController
      *
      * @param EntityManagerInterface $em
      * @param ConversationManager $conversationManager
+     * @param TrackerManager $trackerManager
      * @return Response
      */
-    public function index(EntityManagerInterface $em, ConversationManager $conversationManager): Response
+    public function index(EntityManagerInterface $em, ConversationManager $conversationManager, TrackerManager $trackerManager): Response
     {
         try {
 
@@ -51,12 +54,13 @@ class WebhookController extends AbstractController
                     $params['text'] = 'Send me a link';
                     $conversationManager->finish($chatId);
 
-                } elseif (strpos($text, 'zara.com') !== false) {
+                } elseif (strpos($text, ZaraTracker::DOMAIN) !== false) {
 
+                    $link = $text;
                     $conversation = $conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKER);
-                    $conversation->setParam('link', $text);
+                    $conversation->setParam('link', $link);
 
-                    $colors = ['Black', 'Ecru'];
+                    $colors = $trackerManager->getTracker($link)->getColors($link);
                     $keyboard = Keyboard::make()->inline();
 
                     foreach ($colors as $color) {
@@ -82,10 +86,12 @@ class WebhookController extends AbstractController
                         switch ($conversation->getStep()) {
                             case 1:
 
-                                $conversation->setParam('color', $callbackData);
+                                $link = $conversation->getParam('link');
+                                $color = $callbackData;
+                                $conversation->setParam('color', $color);
                                 $conversation->setStep(2);
 
-                                $sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+                                $sizes = $trackerManager->getTracker($link)->getSizes($link, $color);
                                 $keyboard = Keyboard::make()->inline();
 
                                 foreach ($sizes as $size) {
@@ -100,7 +106,8 @@ class WebhookController extends AbstractController
 
                             case 2:
 
-                                $conversation->setParam('size', $callbackData);
+                                $size = $callbackData;
+                                $conversation->setParam('size', $size);
                                 $conversation->setStep(3);
 
                                 //TODO add to jobs table
