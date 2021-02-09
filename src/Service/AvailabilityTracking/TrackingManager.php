@@ -85,7 +85,7 @@ class TrackingManager
     private function getParser($link, $throwException = true): ?ParserInterface
     {
         foreach ($this->parsers as $parser) {
-            if (strpos($link, $parser->getDomain()) !== false) {
+            if ($parser->supports($link)) {
                 return $parser;
             }
         }

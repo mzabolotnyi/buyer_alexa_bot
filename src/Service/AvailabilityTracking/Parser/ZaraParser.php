@@ -4,8 +4,6 @@ namespace App\Service\AvailabilityTracking\Parser;
 
 class ZaraParser implements ParserInterface
 {
-    const DOMAIN = 'zara.com';
-
     /** @var ParserHelper */
     private $parserHelper;
 
@@ -14,9 +12,9 @@ class ZaraParser implements ParserInterface
         $this->parserHelper = $parserHelper;
     }
 
-    public function getDomain(): string
+    public function supports(string $link): bool
     {
-        return self::DOMAIN;
+        return strpos($link, 'zara.com') !== false;
     }
 
     public function getColors(string $link): array

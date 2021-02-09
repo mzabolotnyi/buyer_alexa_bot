@@ -4,8 +4,6 @@ namespace App\Service\AvailabilityTracking\Parser;
 
 class MangoParser implements ParserInterface
 {
-    const DOMAIN = 'shop.mango.com';
-
     /** @var ParserHelper */
     private $parserHelper;
 
@@ -14,9 +12,17 @@ class MangoParser implements ParserInterface
         $this->parserHelper = $parserHelper;
     }
 
-    public function getDomain(): string
+    public function supports(string $link): bool
     {
-        return self::DOMAIN;
+        $supportedDomains = ['shop.mango.com', 'mangooutlet.com'];
+
+        foreach ($supportedDomains as $domain) {
+            if (strpos($link, $domain) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getColors(string $link): array
