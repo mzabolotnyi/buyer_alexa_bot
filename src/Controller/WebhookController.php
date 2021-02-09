@@ -56,7 +56,7 @@ class WebhookController extends AbstractController
 
                 } elseif (strpos($text, ZaraParser::DOMAIN) !== false) {
 
-                    $conversation = $conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKER);
+                    $conversation = $conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKING);
                     $conversation->setParam('link', $text);
 
                     $colors = $trackingManager->getColors($conversation);
@@ -81,7 +81,7 @@ class WebhookController extends AbstractController
 
                     $callbackData = $update->callbackQuery->data;
 
-                    if ($conversation->checkType(Conversation::TYPE_AVAILABILITY_TRACKER)) {
+                    if ($conversation->checkType(Conversation::TYPE_AVAILABILITY_TRACKING)) {
                         switch ($conversation->getStep()) {
                             case 1:
 
@@ -109,7 +109,7 @@ class WebhookController extends AbstractController
                                 $trackingManager->startTracking($conversation);
 
                                 $params['text'] = sprintf(
-                                    "Availability tracker started for\n\nLink: %s\nColor:  %s\nSize:  %s",
+                                    "Availability tracking started for\n\nLink: %s\nColor:  %s\nSize:  %s",
                                     $conversation->getParam('link'),
                                     $conversation->getParam('color'),
                                     $conversation->getParam('size')

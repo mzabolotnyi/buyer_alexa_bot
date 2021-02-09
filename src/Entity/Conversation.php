@@ -10,7 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class Conversation
 {
-    const TYPE_AVAILABILITY_TRACKER = 'AVAILABILITY_TRACKER';
+    const TYPE_AVAILABILITY_TRACKING = 'AVAILABILITY_TRACKING';
 
     /**
      * @ORM\Id

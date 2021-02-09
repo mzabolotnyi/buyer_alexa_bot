@@ -79,9 +79,9 @@ class TrackingManager
 
     private function getParser($link): ParserInterface
     {
-        foreach ($this->parsers as $tracker) {
-            if (strpos($link, $tracker->getDomain()) !== false) {
-                return $tracker;
+        foreach ($this->parsers as $parser) {
+            if (strpos($link, $parser->getDomain()) !== false) {
+                return $parser;
             }
         }
 
