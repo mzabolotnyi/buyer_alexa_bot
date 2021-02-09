@@ -15,6 +15,10 @@ set_time_limit(0);
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
+$dotenv = new Dotenv();
+$dotenv->usePutenv(true);
+$dotenv->bootEnv(dirname(__DIR__).'/.env');
+
 if (!class_exists(Application::class) || !class_exists(Dotenv::class)) {
     throw new LogicException('You need to add "symfony/framework-bundle" and "symfony/dotenv" as Composer dependencies.');
 }

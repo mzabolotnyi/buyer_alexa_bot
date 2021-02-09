@@ -58,6 +58,33 @@ class ZaraParser implements ParserInterface
         return $sizes;
     }
 
+    public function checkAvailability(string $link, string $color, string $size): bool
+    {
+        $productData = $this->getProductData($link);
+        $result = false;
+
+        foreach ($productData['colors'] as $colorData) {
+
+            if ($colorData['name'] !== $color) {
+                continue;
+            }
+
+            foreach ($colorData['sizes'] as $sizeData) {
+
+                if ($sizeData['name'] !== $size) {
+                    continue;
+                }
+
+                if ($sizeData['availability'] === 'in_stock') {
+                    $result = true;
+                    break;
+                }
+            }
+        }
+
+        return $result;
+    }
+
     private function getProductData(string $link): array
     {
         try {

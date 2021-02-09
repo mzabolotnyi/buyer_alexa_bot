@@ -43,6 +43,16 @@ class Tracking
      */
     private $lastTrackedAt;
 
+    /**
+     * @ORM\Column(type="integer")
+     */
+    private $successfulCount;
+
+    public function __construct()
+    {
+        $this->successfulCount = 0;
+    }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -104,6 +114,25 @@ class Tracking
     public function setLastTrackedAt(?\DateTimeInterface $lastTrackedAt): self
     {
         $this->lastTrackedAt = $lastTrackedAt;
+
+        return $this;
+    }
+
+    public function getSuccessfulCount(): ?int
+    {
+        return $this->successfulCount;
+    }
+
+    public function setSuccessfulCount(int $successfulCount): self
+    {
+        $this->successfulCount = $successfulCount;
+
+        return $this;
+    }
+
+    public function successfulCountIncrement(): self
+    {
+        $this->successfulCount++;
 
         return $this;
     }

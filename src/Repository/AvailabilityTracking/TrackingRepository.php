@@ -18,4 +18,16 @@ class TrackingRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Tracking::class);
     }
+
+    /**
+     * @return Tracking[]
+     */
+    public function findForTracking(): array
+    {
+        $qb = $this->createQueryBuilder('tracking')
+            ->where('tracking.lastTrackedAt IS NULL OR tracking.lastTrackedAt < :deadline')
+            ->setParameter('deadline', (new \DateTime())->modify('-5 minute'));
+
+        return $qb->getQuery()->getResult();
+    }
 }

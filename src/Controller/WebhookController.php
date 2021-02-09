@@ -127,7 +127,6 @@ class WebhookController extends AbstractController
             $em->flush();
 
         } catch (\Throwable $e) {
-            //$params['text'] = 'Something went wrong. Please try again';
             $params['text'] = "Error: {$e->getMessage()}";
             $this->bot->sendMessage($params);
         }
