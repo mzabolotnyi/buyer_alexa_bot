@@ -50,7 +50,9 @@ class WebhookController extends AbstractController
             $type = $update->detectType();
             $message = $update->getMessage();
             $messageId = $message->messageId;
-            $chatId = $message->chat->id;
+            $chat = $message->chat;
+            $chatId = $chat->id;
+            $username = $chat->username;
             $params = ['chat_id' => $chatId];
 
             if ($type === 'message') {
@@ -65,6 +67,7 @@ class WebhookController extends AbstractController
                 } elseif ($this->trackingManager->hasParser($text)) {
 
                     $conversation = $this->conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKING);
+                    $conversation->setParam('username', $username);
                     $conversation->setParam('link', $text);
 
                     $colors = $this->trackingManager->getColors($conversation);
@@ -109,7 +112,8 @@ class WebhookController extends AbstractController
                                 $conversation->setParam('size', $callbackData);
                                 $conversation->setStep(3);
 
-                                $this->trackingManager->startTracking($conversation);
+                                $tracking = $this->trackingManager->startTracking($conversation);
+                                $tracking->setParam('username', $username);
 
                                 $params['text'] = sprintf(
                                     "Availability tracking started for\n\nLink: %s\nColor:  %s\nSize:  %s",

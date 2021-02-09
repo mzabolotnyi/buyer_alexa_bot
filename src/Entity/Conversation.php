@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use App\Entity\Extra\HasParams;
+use App\Entity\Extra\TimestampableEntity;
 use App\Repository\ConversationRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -10,6 +12,9 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class Conversation
 {
+    use TimestampableEntity;
+    use HasParams;
+
     const TYPE_AVAILABILITY_TRACKING = 'AVAILABILITY_TRACKING';
 
     /**
@@ -33,11 +38,6 @@ class Conversation
      * @ORM\Column(type="string", length=255)
      */
     private $type;
-
-    /**
-     * @ORM\Column(type="json")
-     */
-    private $params = [];
 
     public function getId(): ?int
     {
@@ -83,29 +83,5 @@ class Conversation
     public function checkType(string $type): bool
     {
         return $this->type === $type;
-    }
-
-    public function getParams(): ?array
-    {
-        return $this->params;
-    }
-
-    public function setParams(array $params): self
-    {
-        $this->params = $params;
-
-        return $this;
-    }
-
-    public function getParam($key)
-    {
-        return isset($this->params[$key]) ? $this->params[$key] : null;
-    }
-
-    public function setParam($key, $value): self
-    {
-        $this->params[$key] = $value;
-
-        return $this;
     }
 }

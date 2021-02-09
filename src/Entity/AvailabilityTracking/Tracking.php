@@ -2,6 +2,8 @@
 
 namespace App\Entity\AvailabilityTracking;
 
+use App\Entity\Extra\HasParams;
+use App\Entity\Extra\TimestampableEntity;
 use App\Repository\AvailabilityTracking\TrackingRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -11,6 +13,9 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class Tracking
 {
+    use TimestampableEntity;
+    use HasParams;
+
     /**
      * @ORM\Id
      * @ORM\GeneratedValue
