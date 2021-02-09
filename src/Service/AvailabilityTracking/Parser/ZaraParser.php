@@ -1,19 +1,17 @@
 <?php
 
-namespace App\Service\AvailabilityTracker;
+namespace App\Service\AvailabilityTracking\Parser;
 
-use App\Service\Helpers\CrawlerHelper;
-
-class ZaraTracker implements AvailabilityTrackerInterface
+class ZaraParser implements ParserInterface
 {
     const DOMAIN = 'zara.com';
 
-    /** @var CrawlerHelper */
-    private $crawlerHelper;
+    /** @var ParserHelper */
+    private $parserHelper;
 
-    public function __construct(CrawlerHelper $crawlerHelper)
+    public function __construct(ParserHelper $parserHelper)
     {
-        $this->crawlerHelper = $crawlerHelper;
+        $this->parserHelper = $parserHelper;
     }
 
     public function getDomain(): string
@@ -39,11 +37,7 @@ class ZaraTracker implements AvailabilityTrackerInterface
 
     public function getSizes(string $link, string $color): array
     {
-        $html = file_get_contents($link);
-        $productJson = $this->crawlerHelper->getSubstringBetweenTwoSubstrings($html, 'product: ', 'originalProductId:');
-        $productJson = rtrim(rtrim($productJson), ',');
-        $productData = json_decode($productJson, true);
-
+        $productData = $this->getProductData($link);
         $sizes = [];
 
         foreach ($productData['colors'] as $colorData) {
@@ -66,12 +60,18 @@ class ZaraTracker implements AvailabilityTrackerInterface
 
     private function getProductData(string $link): array
     {
-        $html = file_get_contents($link);
-        $productJson = $this->crawlerHelper->getSubstringBetweenTwoSubstrings($html, 'product: ', 'originalProductId:');
-        $productJson = rtrim(rtrim($productJson), ',');
-        $productData = json_decode($productJson, true);
+        try {
 
-        if (!$productData) {
+            $html = file_get_contents($link);
+            $productJson = $this->parserHelper->getSubstringBetweenTwoSubstrings($html, 'product: ', 'originalProductId:');
+            $productJson = rtrim(rtrim($productJson), ',');
+            $productData = json_decode($productJson, true);
+
+            if (!$productData) {
+                throw new \RuntimeException('Invalid link');
+            }
+
+        } catch (\Throwable $e) {
             throw new \RuntimeException('Invalid link');
         }
 

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Service\Helpers;
+namespace App\Service\AvailabilityTracking\Parser;
 
-class CrawlerHelper
+class ParserHelper
 {
     function getSubstringBetweenTwoSubstrings($string, $start, $end)
     {

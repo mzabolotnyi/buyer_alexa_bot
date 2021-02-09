@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Service\AvailabilityTracker;
+namespace App\Service\AvailabilityTracking\Parser;
 
-interface AvailabilityTrackerInterface
+interface ParserInterface
 {
     public function getDomain(): string;
     public function getColors(string $link): array;
