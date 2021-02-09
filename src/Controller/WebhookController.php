@@ -3,7 +3,6 @@
 namespace App\Controller;
 
 use App\Entity\Conversation;
-use App\Service\AvailabilityTracking\Parser\ZaraParser;
 use App\Service\AvailabilityTracking\TrackingManager;
 use App\Service\ConversationManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,20 +20,29 @@ class WebhookController extends AbstractController
     /** @var Api */
     private $bot;
 
-    public function __construct()
+    /** @var EntityManagerInterface */
+    private $em;
+
+    /** @var TrackingManager */
+    private $trackingManager;
+
+    /** @var ConversationManager */
+    private $conversationManager;
+
+    public function __construct(EntityManagerInterface $em, TrackingManager $trackingManager, ConversationManager $conversationManager)
     {
+        $this->em = $em;
+        $this->trackingManager = $trackingManager;
+        $this->conversationManager = $conversationManager;
         $this->bot = new Api(getenv('TELEGRAM_TOKEN'));
     }
 
     /**
      * @Route("")
      *
-     * @param EntityManagerInterface $em
-     * @param ConversationManager $conversationManager
-     * @param TrackingManager $trackingManager
      * @return Response
      */
-    public function index(EntityManagerInterface $em, ConversationManager $conversationManager, TrackingManager $trackingManager): Response
+    public function index(): Response
     {
         try {
 
@@ -52,22 +60,24 @@ class WebhookController extends AbstractController
                 if ($text == '/start') {
 
                     $params['text'] = 'Send me a link';
-                    $conversationManager->finish($chatId);
+                    $this->conversationManager->finish($chatId);
 
-                } elseif (strpos($text, ZaraParser::DOMAIN) !== false) {
+                } elseif ($this->trackingManager->hasParser($text)) {
 
-                    $conversation = $conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKING);
+                    $conversation = $this->conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKING);
                     $conversation->setParam('link', $text);
 
-                    $colors = $trackingManager->getColors($conversation);
-                    $keyboard = Keyboard::make()->inline();
+                    $colors = $this->trackingManager->getColors($conversation);
 
-                    foreach ($colors as $color) {
-                        $keyboard->row(Keyboard::inlineButton(['text' => $color, 'callback_data' => $color]));
+                    if (count($colors) === 1) {
+                        //skip color choosing step and go to size choosing step
+                        $conversation->setParam('color', $colors[0]);
+                        $conversation->setStep(2);
+                        $sizes = $this->trackingManager->getSizes($conversation);
+                        $this->chooseSizeReply($params, $sizes);
+                    } else {
+                        $this->chooseColorReply($params, $colors);
                     }
-
-                    $params['text'] = 'Choose a color';
-                    $params['reply_markup'] = $keyboard;
 
                 } else {
                     $params['text'] = 'I don\'t know this command yet =(';
@@ -75,7 +85,7 @@ class WebhookController extends AbstractController
 
             } elseif ($type === 'callback_query') {
 
-                $conversation = $conversationManager->current($chatId);
+                $conversation = $this->conversationManager->current($chatId);
 
                 if ($conversation !== null) {
 
@@ -88,15 +98,8 @@ class WebhookController extends AbstractController
                                 $conversation->setParam('color', $callbackData);
                                 $conversation->setStep(2);
 
-                                $sizes = $trackingManager->getSizes($conversation);
-                                $keyboard = Keyboard::make()->inline();
-
-                                foreach ($sizes as $size) {
-                                    $keyboard->row(Keyboard::inlineButton(['text' => $size, 'callback_data' => $size]));
-                                }
-
-                                $params['text'] = 'Choose a size';
-                                $params['reply_markup'] = $keyboard;
+                                $sizes = $this->trackingManager->getSizes($conversation);
+                                $this->chooseSizeReply($params, $sizes);
 
                                 $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
                                 break;
@@ -106,7 +109,7 @@ class WebhookController extends AbstractController
                                 $conversation->setParam('size', $callbackData);
                                 $conversation->setStep(3);
 
-                                $trackingManager->startTracking($conversation);
+                                $this->trackingManager->startTracking($conversation);
 
                                 $params['text'] = sprintf(
                                     "Availability tracking started for\n\nLink: %s\nColor:  %s\nSize:  %s",
@@ -115,7 +118,7 @@ class WebhookController extends AbstractController
                                     $conversation->getParam('size')
                                 );
 
-                                $conversationManager->finish($chatId);
+                                $this->conversationManager->finish($chatId);
                                 $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
                                 break;
                         }
@@ -124,7 +127,7 @@ class WebhookController extends AbstractController
             }
 
             $this->bot->sendMessage($params);
-            $em->flush();
+            $this->em->flush();
 
         } catch (\Throwable $e) {
             $params['text'] = "Error: {$e->getMessage()}";
@@ -132,5 +135,29 @@ class WebhookController extends AbstractController
         }
 
         return new Response();
+    }
+
+    private function chooseColorReply(&$params, $colors): void
+    {
+        $keyboard = Keyboard::make()->inline();
+
+        foreach ($colors as $color) {
+            $keyboard->row(Keyboard::inlineButton(['text' => $color, 'callback_data' => $color]));
+        }
+
+        $params['text'] = 'Choose a color';
+        $params['reply_markup'] = $keyboard;
+    }
+
+    private function chooseSizeReply(&$params, $sizes): void
+    {
+        $keyboard = Keyboard::make()->inline();
+
+        foreach ($sizes as $size) {
+            $keyboard->row(Keyboard::inlineButton(['text' => $size, 'callback_data' => $size]));
+        }
+
+        $params['text'] = 'Choose a size';
+        $params['reply_markup'] = $keyboard;
     }
 }

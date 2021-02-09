@@ -77,7 +77,12 @@ class TrackingManager
         return $this->getParser($link)->checkAvailability($link, $tracking->getColor(), $tracking->getSize());
     }
 
-    private function getParser($link): ParserInterface
+    public function hasParser($link): bool
+    {
+        return $this->getParser($link) instanceof ParserInterface;
+    }
+
+    private function getParser($link, $throwException = true): ?ParserInterface
     {
         foreach ($this->parsers as $parser) {
             if (strpos($link, $parser->getDomain()) !== false) {
@@ -85,6 +90,10 @@ class TrackingManager
             }
         }
 
-        throw new \RuntimeException("Could not find parser: $link");
+        if ($throwException) {
+            throw new \RuntimeException("Could not find parser: $link");
+        }
+
+        return null;
     }
 }

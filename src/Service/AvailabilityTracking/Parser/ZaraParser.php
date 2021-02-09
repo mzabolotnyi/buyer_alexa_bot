@@ -95,13 +95,13 @@ class ZaraParser implements ParserInterface
             $productData = json_decode($productJson, true);
 
             if (!$productData) {
-                throw new \RuntimeException('Invalid link');
+                throw new \RuntimeException('Could not parse');
             }
 
-        } catch (\Throwable $e) {
-            throw new \RuntimeException('Invalid link');
-        }
+            return $productData;
 
-        return $productData;
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("Invalid link: {$e->getMessage()}");
+        }
     }
 }
