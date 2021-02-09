@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Controller\WebhookController;
 use App\Entity\AvailabilityTracking\Tracking;
 use App\Repository\AvailabilityTracking\TrackingRepository;
 use App\Service\AvailabilityTracking\TrackingManager;
@@ -10,6 +11,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Telegram\Bot\Api;
+use Telegram\Bot\Keyboard\Keyboard;
 
 class AvailabilityTrackingCommand extends Command
 {
@@ -48,7 +50,7 @@ class AvailabilityTrackingCommand extends Command
                 $this->runTracking($tracking);
                 $this->em->flush();
             } catch (\Throwable $e) {
-                //TODO add logging
+                $output->writeln("Error: {$e->getMessage()}");
             }
         }
 
@@ -62,6 +64,12 @@ class AvailabilityTrackingCommand extends Command
 
         if ($available) {
 
+            $keyboard = Keyboard::make()->inline();
+            $keyboard->row(Keyboard::inlineButton([
+                'text' => 'Stop tracking this item',
+                'callback_data' => json_encode(['action' => WebhookController::CALLBACK_ACTION_FINISH_TRACKING, 'id' => $tracking->getId()])
+            ]));
+
             $params = [
                 'chat_id' => $tracking->getChatId(),
                 'text' => sprintf(
@@ -69,7 +77,8 @@ class AvailabilityTrackingCommand extends Command
                     $tracking->getLink(),
                     $tracking->getColor(),
                     $tracking->getSize()
-                )
+                ),
+                'reply_markup' => $keyboard
             ];
 
             $this->bot->sendMessage($params);

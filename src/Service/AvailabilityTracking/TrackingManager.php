@@ -70,6 +70,15 @@ class TrackingManager
         return $tracking;
     }
 
+    public function finishTracking($id): void
+    {
+        $tracking = $this->trackingRepository->find($id);
+
+        if ($tracking !== null) {
+            $this->em->remove($tracking);
+        }
+    }
+
     public function checkAvailability(Tracking $tracking): bool
     {
         $link = $tracking->getLink();

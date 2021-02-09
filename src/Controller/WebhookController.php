@@ -11,12 +11,15 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Telegram\Bot\Api;
 use Telegram\Bot\Keyboard\Keyboard;
+use Telegram\Bot\Objects\Message;
 
 /**
  * @Route("")
  */
 class WebhookController extends AbstractController
 {
+    const CALLBACK_ACTION_FINISH_TRACKING = 'FINISH_TRACKING';
+
     /** @var Api */
     private $bot;
 
@@ -52,7 +55,7 @@ class WebhookController extends AbstractController
             $messageId = $message->messageId;
             $chat = $message->chat;
             $chatId = $chat->id;
-            $username = $chat->username;
+            $from = ['username' => $chat->username, 'firstName' => $chat->firstName, 'lastName' => $chat->lastName];
             $params = ['chat_id' => $chatId];
 
             if ($type === 'message') {
@@ -61,13 +64,17 @@ class WebhookController extends AbstractController
 
                 if ($text == '/start') {
 
-                    $params['text'] = 'Send me a link';
-                    $this->conversationManager->finish($chatId);
+                    $params['text'] = sprintf(
+                        "Send me a link and I will let you know when the item is in stock\n\nSupported sites:\n%s\n%s\n%s",
+                        'zara.com',
+                        'shop.mango.com',
+                        'mangooutlet.com'
+                    );
 
                 } elseif ($this->trackingManager->hasParser($text)) {
 
                     $conversation = $this->conversationManager->start($chatId, Conversation::TYPE_AVAILABILITY_TRACKING);
-                    $conversation->setParam('username', $username);
+                    $conversation->setParam('from', $from);
                     $conversation->setParam('link', $text);
 
                     $colors = $this->trackingManager->getColors($conversation);
@@ -88,49 +95,21 @@ class WebhookController extends AbstractController
 
             } elseif ($type === 'callback_query') {
 
-                $conversation = $this->conversationManager->current($chatId);
+                $callbackData = $update->callbackQuery->data;
+                $callbackDataDecoded = json_decode($callbackData, true);
 
-                if ($conversation !== null) {
-
-                    $callbackData = $update->callbackQuery->data;
-
-                    if ($conversation->checkType(Conversation::TYPE_AVAILABILITY_TRACKING)) {
-                        switch ($conversation->getStep()) {
-                            case 1:
-
-                                $conversation->setParam('color', $callbackData);
-                                $conversation->setStep(2);
-
-                                $sizes = $this->trackingManager->getSizes($conversation);
-                                $this->chooseSizeReply($params, $sizes);
-
-                                $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
-                                break;
-
-                            case 2:
-
-                                $conversation->setParam('size', $callbackData);
-                                $conversation->setStep(3);
-
-                                $tracking = $this->trackingManager->startTracking($conversation);
-                                $tracking->setParam('username', $username);
-
-                                $params['text'] = sprintf(
-                                    "Availability tracking started for\n\nLink: %s\nColor:  %s\nSize:  %s",
-                                    $conversation->getParam('link'),
-                                    $conversation->getParam('color'),
-                                    $conversation->getParam('size')
-                                );
-
-                                $this->conversationManager->finish($chatId);
-                                $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
-                                break;
-                        }
-                    }
+                if (is_array($callbackDataDecoded)) {
+                    $this->processCallbackAction($params, $callbackDataDecoded);
+                    $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
+                } else {
+                    $this->processCallbackConversation($params, $callbackData, $message);
                 }
             }
 
-            $this->bot->sendMessage($params);
+            if (isset($params['text'])) {
+                $this->bot->sendMessage($params);
+            }
+
             $this->em->flush();
 
         } catch (\Throwable $e) {
@@ -141,7 +120,7 @@ class WebhookController extends AbstractController
         return new Response();
     }
 
-    private function chooseColorReply(&$params, $colors): void
+    private function chooseColorReply(array &$params, array $colors): void
     {
         $keyboard = Keyboard::make()->inline();
 
@@ -153,7 +132,7 @@ class WebhookController extends AbstractController
         $params['reply_markup'] = $keyboard;
     }
 
-    private function chooseSizeReply(&$params, $sizes): void
+    private function chooseSizeReply(array &$params, array $sizes): void
     {
         $keyboard = Keyboard::make()->inline();
 
@@ -163,5 +142,68 @@ class WebhookController extends AbstractController
 
         $params['text'] = 'Choose a size';
         $params['reply_markup'] = $keyboard;
+    }
+
+    private function processCallbackAction(array &$params, array $callbackData): void
+    {
+        switch ($callbackData['action']) {
+            case self::CALLBACK_ACTION_FINISH_TRACKING:
+                $this->trackingManager->finishTracking($callbackData['id']);
+                $params['text'] = 'Tracking was stopped';
+                break;
+        }
+    }
+
+    /**
+     * @param array $params
+     * @param string $callbackData
+     * @param Message $message
+     */
+    private function processCallbackConversation(array &$params, string $callbackData, $message): void
+    {
+        $messageId = $message->messageId;
+        $chat = $message->chat;
+        $chatId = $chat->id;
+        $from = ['username' => $chat->username, 'firstName' => $chat->firstName, 'lastName' => $chat->lastName];
+
+        $conversation = $this->conversationManager->current($chatId);
+
+        if ($conversation !== null) {
+
+            if ($conversation->checkType(Conversation::TYPE_AVAILABILITY_TRACKING)) {
+
+                switch ($conversation->getStep()) {
+                    case 1:
+
+                        $conversation->setParam('color', $callbackData);
+                        $conversation->setStep(2);
+
+                        $sizes = $this->trackingManager->getSizes($conversation);
+                        $this->chooseSizeReply($params, $sizes);
+
+                        $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
+                        break;
+
+                    case 2:
+
+                        $conversation->setParam('size', $callbackData);
+                        $conversation->setStep(3);
+
+                        $tracking = $this->trackingManager->startTracking($conversation);
+                        $tracking->setParam('from', $from);
+
+                        $params['text'] = sprintf(
+                            "Tracking was started\n\nLink: %s\nColor:  %s\nSize:  %s",
+                            $conversation->getParam('link'),
+                            $conversation->getParam('color'),
+                            $conversation->getParam('size')
+                        );
+
+                        $this->conversationManager->finish($chatId);
+                        $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
+                        break;
+                }
+            }
+        }
     }
 }
