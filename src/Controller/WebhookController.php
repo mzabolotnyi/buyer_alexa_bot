@@ -11,7 +11,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Telegram\Bot\Api;
 use Telegram\Bot\Keyboard\Keyboard;
-use Telegram\Bot\Objects\Message;
 
 /**
  * @Route("")
@@ -19,6 +18,8 @@ use Telegram\Bot\Objects\Message;
 class WebhookController extends AbstractController
 {
     const CALLBACK_ACTION_FINISH_TRACKING = 'FINISH_TRACKING';
+    const CALLBACK_ACTION_TRACKING_COLOR = 'TRACKING_COLOR';
+    const CALLBACK_ACTION_TRACKING_SIZE = 'TRACKING_SIZE';
 
     /** @var Api */
     private $bot;
@@ -52,7 +53,6 @@ class WebhookController extends AbstractController
             $update = $this->bot->getWebhookUpdate();
             $type = $update->detectType();
             $message = $update->getMessage();
-            $messageId = $message->messageId;
             $chat = $message->chat;
             $chatId = $chat->id;
             $from = "{$chat->firstName} {$chat->lastName} {$chat->username}";
@@ -84,9 +84,9 @@ class WebhookController extends AbstractController
                         $conversation->setParam('color', $colors[0]);
                         $conversation->setStep(2);
                         $sizes = $this->trackingManager->getSizes($conversation);
-                        $this->chooseSizeReply($params, $sizes);
+                        $this->chooseSizeReply($params, $sizes, $conversation);
                     } else {
-                        $this->chooseColorReply($params, $colors);
+                        $this->chooseColorReply($params, $colors, $conversation);
                     }
 
                 } else {
@@ -99,10 +99,7 @@ class WebhookController extends AbstractController
                 $callbackDataDecoded = json_decode($callbackData, true);
 
                 if (is_array($callbackDataDecoded)) {
-                    $this->processCallbackAction($params, $callbackDataDecoded);
-                    $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
-                } else {
-                    $this->processCallbackConversation($params, $callbackData, $message);
+                    $this->processCallbackAction($params, $callbackDataDecoded, $message);
                 }
             }
 
@@ -120,90 +117,88 @@ class WebhookController extends AbstractController
         return new Response();
     }
 
-    private function chooseColorReply(array &$params, array $colors): void
+    private function chooseColorReply(array &$params, array $colors, Conversation $conversation): void
     {
         $keyboard = Keyboard::make()->inline();
 
         foreach ($colors as $color) {
-            $keyboard->row(Keyboard::inlineButton(['text' => $color, 'callback_data' => $color]));
+            $keyboard->row(Keyboard::inlineButton([
+                'text' => $color,
+                'callback_data' => json_encode([
+                    'action' => WebhookController::CALLBACK_ACTION_TRACKING_COLOR,
+                    'id' => $conversation->getId(),
+                    'color' => $color
+                ])
+            ]));
         }
 
         $params['text'] = 'Choose a color';
         $params['reply_markup'] = $keyboard;
     }
 
-    private function chooseSizeReply(array &$params, array $sizes): void
+    private function chooseSizeReply(array &$params, array $sizes, Conversation $conversation): void
     {
         $keyboard = Keyboard::make()->inline();
 
         foreach ($sizes as $size) {
-            $keyboard->row(Keyboard::inlineButton(['text' => $size, 'callback_data' => $size]));
+            $keyboard->row(Keyboard::inlineButton([
+                'text' => $size,
+                'callback_data' => json_encode([
+                    'action' => WebhookController::CALLBACK_ACTION_TRACKING_SIZE,
+                    'id' => $conversation->getId(),
+                    'size' => $size
+                ])
+            ]));
         }
 
         $params['text'] = 'Choose a size';
         $params['reply_markup'] = $keyboard;
     }
 
-    private function processCallbackAction(array &$params, array $callbackData): void
-    {
-        switch ($callbackData['action']) {
-            case self::CALLBACK_ACTION_FINISH_TRACKING:
-                $this->trackingManager->finishTracking($callbackData['id']);
-                $params['text'] = 'Tracking was stopped';
-                break;
-        }
-    }
-
-    /**
-     * @param array $params
-     * @param string $callbackData
-     * @param Message $message
-     */
-    private function processCallbackConversation(array &$params, string $callbackData, $message): void
+    private function processCallbackAction(array &$params, array $callbackData, $message): void
     {
         $messageId = $message->messageId;
         $chat = $message->chat;
-        $chatId = $chat->id;
         $from = "{$chat->firstName} {$chat->lastName} {$chat->username}";
 
-        $conversation = $this->conversationManager->current($chatId);
+        switch ($callbackData['action']) {
+            case self::CALLBACK_ACTION_FINISH_TRACKING:
 
-        if ($conversation !== null) {
+                $this->trackingManager->finishTracking($callbackData['id']);
+                $params['text'] = 'Tracking was stopped';
+                break;
 
-            if ($conversation->checkType(Conversation::TYPE_AVAILABILITY_TRACKING)) {
+            case self::CALLBACK_ACTION_TRACKING_COLOR:
 
-                switch ($conversation->getStep()) {
-                    case 1:
+                $conversation = $this->conversationManager->find($callbackData['id']);
+                $conversation->setParam('color', $callbackData['color']);
+                $conversation->setStep(2);
 
-                        $conversation->setParam('color', $callbackData);
-                        $conversation->setStep(2);
+                $sizes = $this->trackingManager->getSizes($conversation);
+                $this->chooseSizeReply($params, $sizes, $conversation);
 
-                        $sizes = $this->trackingManager->getSizes($conversation);
-                        $this->chooseSizeReply($params, $sizes);
+                $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
+                break;
 
-                        $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
-                        break;
+            case self::CALLBACK_ACTION_TRACKING_SIZE:
 
-                    case 2:
+                $conversation = $this->conversationManager->find($callbackData['id']);
+                $conversation->setParam('size', $callbackData['size']);
+                $conversation->setStep(3);
 
-                        $conversation->setParam('size', $callbackData);
-                        $conversation->setStep(3);
+                $tracking = $this->trackingManager->startTracking($conversation);
+                $tracking->setFrom($from);
 
-                        $tracking = $this->trackingManager->startTracking($conversation);
-                        $tracking->setFrom($from);
+                $params['text'] = sprintf(
+                    "Tracking was started\n\nLink: %s\nColor:  %s\nSize:  %s",
+                    $conversation->getParam('link'),
+                    $conversation->getParam('color'),
+                    $conversation->getParam('size')
+                );
 
-                        $params['text'] = sprintf(
-                            "Tracking was started\n\nLink: %s\nColor:  %s\nSize:  %s",
-                            $conversation->getParam('link'),
-                            $conversation->getParam('color'),
-                            $conversation->getParam('size')
-                        );
-
-                        $this->conversationManager->finish($chatId);
-                        $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
-                        break;
-                }
-            }
+                $this->conversationManager->finish($callbackData['id']);
+                $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
+                break;
         }
     }
 }

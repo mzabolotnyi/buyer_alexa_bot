@@ -62,6 +62,7 @@ class TrackingManager
                 ->setColor($color)
                 ->setSize($size);
             $this->em->persist($tracking);
+            $this->em->flush();
         }
 
         $tracking->setLastTrackedAt(null);

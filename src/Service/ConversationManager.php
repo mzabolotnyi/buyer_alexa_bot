@@ -22,31 +22,27 @@ class ConversationManager
 
     public function start(string $chatId, string $type): Conversation
     {
-        $conversation = $this->conversationRepository->findOneByChatId($chatId);
-
-        if ($conversation === null) {
-            $conversation = new Conversation();
-            $conversation->setChatId($chatId);
-            $this->em->persist($conversation);
-        }
-
+        $conversation = new Conversation();
+        $conversation->setChatId($chatId);
         $conversation->setType($type);
         $conversation->setStep(1);
+        $this->em->persist($conversation);
+        $this->em->flush();
 
         return $conversation;
     }
 
-    public function finish(string $chatId): void
+    public function finish($id): void
     {
-        $conversation = $this->conversationRepository->findOneByChatId($chatId);
+        $conversation = $this->conversationRepository->find($id);
 
         if ($conversation !== null) {
             $this->em->remove($conversation);
         }
     }
 
-    public function current(string $chatId): ?Conversation
+    public function find($id): ?Conversation
     {
-        return $this->conversationRepository->findOneByChatId($chatId);
+        return $this->conversationRepository->find($id);
     }
 }
