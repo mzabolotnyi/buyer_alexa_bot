@@ -94,7 +94,8 @@ class WebhookController extends AbstractController
                 }
 
             } elseif ($type === 'callback_query') {
-                $this->processCallbackAction($params, json_decode($update->callbackQuery->data), $message);
+                $callbackData = json_decode($update->callbackQuery->data, true);
+                $this->processCallbackAction($params, $callbackData, $message);
             }
 
             if (isset($params['text'])) {
