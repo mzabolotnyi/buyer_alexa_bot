@@ -23,7 +23,7 @@ class ZaraParser implements ParserInterface
         $colors = [];
 
         foreach ($productData['colors'] as $colorData) {
-            $colors[] = $colorData['name'];
+            $colors[$colorData['id']] = $colorData['name'];
         }
 
         if (empty($colors)) {

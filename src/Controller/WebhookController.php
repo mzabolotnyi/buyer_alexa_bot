@@ -17,9 +17,9 @@ use Telegram\Bot\Keyboard\Keyboard;
  */
 class WebhookController extends AbstractController
 {
-    const CALLBACK_ACTION_FINISH_TRACKING = 'FINISH_TRACKING';
-    const CALLBACK_ACTION_TRACKING_COLOR = 'TRACKING_COLOR';
-    const CALLBACK_ACTION_TRACKING_SIZE = 'TRACKING_SIZE';
+    const CALLBACK_ACTION_FINISH_TRACKING = 1;
+    const CALLBACK_ACTION_TRACKING_COLOR = 2;
+    const CALLBACK_ACTION_TRACKING_SIZE = 3;
 
     /** @var Api */
     private $bot;
@@ -78,10 +78,11 @@ class WebhookController extends AbstractController
                     $conversation->setParam('link', $text);
 
                     $colors = $this->trackingManager->getColors($conversation);
+                    $conversation->setParam('colors', $colors);
 
                     if (count($colors) === 1) {
                         //skip color choosing step and go to size choosing step
-                        $conversation->setParam('color', $colors[0]);
+                        $conversation->setParam('color', array_values($colors)[0]);
                         $conversation->setStep(2);
                         $sizes = $this->trackingManager->getSizes($conversation);
                         $this->chooseSizeReply($params, $sizes, $conversation);
@@ -106,6 +107,7 @@ class WebhookController extends AbstractController
 
         } catch (\Throwable $e) {
             $params['text'] = "Error: {$e->getMessage()}";
+            unset($params['reply_markup']);
             $this->bot->sendMessage($params);
         }
 
@@ -116,13 +118,13 @@ class WebhookController extends AbstractController
     {
         $keyboard = Keyboard::make()->inline();
 
-        foreach ($colors as $color) {
+        foreach ($colors as $colorId => $colorName) {
             $keyboard->row(Keyboard::inlineButton([
-                'text' => $color,
+                'text' => $colorName,
                 'callback_data' => json_encode([
                     'action' => WebhookController::CALLBACK_ACTION_TRACKING_COLOR,
                     'id' => $conversation->getId(),
-                    'color' => $color
+                    'color' => $colorId
                 ])
             ]));
         }
@@ -166,7 +168,8 @@ class WebhookController extends AbstractController
             case self::CALLBACK_ACTION_TRACKING_COLOR:
 
                 $conversation = $this->conversationManager->find($callbackData['id']);
-                $conversation->setParam('color', $callbackData['color']);
+                $colors = $conversation->getParam(['colors']);
+                $conversation->setParam('color', $colors['color']);
                 $conversation->setStep(2);
 
                 $sizes = $this->trackingManager->getSizes($conversation);
