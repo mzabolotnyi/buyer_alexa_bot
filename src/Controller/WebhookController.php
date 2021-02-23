@@ -168,8 +168,8 @@ class WebhookController extends AbstractController
             case self::CALLBACK_ACTION_TRACKING_COLOR:
 
                 $conversation = $this->conversationManager->find($callbackData['id']);
-                $colors = $conversation->getParam(['colors']);
-                $conversation->setParam('color', $colors['color']);
+                $colors = $conversation->getParam('colors');
+                $conversation->setParam('color', $colors[$callbackData['color']]);
                 $conversation->setStep(2);
 
                 $sizes = $this->trackingManager->getSizes($conversation);
