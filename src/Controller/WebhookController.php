@@ -85,6 +85,7 @@ class WebhookController extends AbstractController
                         $conversation->setParam('color', array_values($colors)[0]);
                         $conversation->setStep(2);
                         $sizes = $this->trackingManager->getSizes($conversation);
+                        $conversation->setParam('sizes', $sizes);
                         $this->chooseSizeReply($params, $sizes, $conversation);
                     } else {
                         $this->chooseColorReply($params, $colors, $conversation);
@@ -106,7 +107,13 @@ class WebhookController extends AbstractController
             $this->em->flush();
 
         } catch (\Throwable $e) {
-            $params['text'] = "Error: {$e->getMessage()}";
+            $params['text'] = sprintf(
+                'Error %s: "%s" at %s line %s',
+                get_class($e),
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine()
+            );
             unset($params['reply_markup']);
             $this->bot->sendMessage($params);
         }
@@ -137,13 +144,13 @@ class WebhookController extends AbstractController
     {
         $keyboard = Keyboard::make()->inline();
 
-        foreach ($sizes as $size) {
+        foreach ($sizes as $sizeId => $sizeName) {
             $keyboard->row(Keyboard::inlineButton([
-                'text' => $size,
+                'text' => $sizeName,
                 'callback_data' => json_encode([
                     'action' => WebhookController::CALLBACK_ACTION_TRACKING_SIZE,
                     'id' => $conversation->getId(),
-                    'size' => $size
+                    'size' => $sizeId
                 ])
             ]));
         }
@@ -173,6 +180,7 @@ class WebhookController extends AbstractController
                 $conversation->setStep(2);
 
                 $sizes = $this->trackingManager->getSizes($conversation);
+                $conversation->setParam('sizes', $sizes);
                 $this->chooseSizeReply($params, $sizes, $conversation);
 
                 $this->bot->deleteMessage(array_merge($params, ['message_id' => $messageId]));
@@ -181,7 +189,8 @@ class WebhookController extends AbstractController
             case self::CALLBACK_ACTION_TRACKING_SIZE:
 
                 $conversation = $this->conversationManager->find($callbackData['id']);
-                $conversation->setParam('size', $callbackData['size']);
+                $sizes = $conversation->getParam('sizes');
+                $conversation->setParam('size', $sizes[$callbackData['size']]);
                 $conversation->setStep(3);
 
                 $tracking = $this->trackingManager->startTracking($conversation);

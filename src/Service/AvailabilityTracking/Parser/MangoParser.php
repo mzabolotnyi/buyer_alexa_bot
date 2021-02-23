@@ -35,7 +35,12 @@ class MangoParser implements ParserInterface
         $productData = $this->getProductData($link);
         $sizesAvailability = explode(',', $productData['sizeAvailability']);
         $sizesNoAvailability = explode(',', $productData['sizeNoAvailability']);
-        $sizes = array_merge($sizesAvailability, $sizesNoAvailability);
+
+        //merge all sizes
+        $sizesMerged = array_merge($sizesAvailability, $sizesNoAvailability);
+
+        //'ninguno' mean nothing - remove it
+        $sizes = array_diff($sizesMerged, ['ninguno']);
 
         if (empty($sizes)) {
             throw new \RuntimeException('Invalid link');

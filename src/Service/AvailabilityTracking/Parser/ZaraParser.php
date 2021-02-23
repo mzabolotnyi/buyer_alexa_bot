@@ -45,7 +45,7 @@ class ZaraParser implements ParserInterface
             }
 
             foreach ($colorData['sizes'] as $sizeData) {
-                $sizes[] = $sizeData['name'];
+                $sizes[$sizeData['id']] = $sizeData['name'];
             }
         }
 
