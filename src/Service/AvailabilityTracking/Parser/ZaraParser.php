@@ -22,7 +22,7 @@ class ZaraParser implements ParserInterface
         $productData = $this->getProductData($link);
         $colors = [];
 
-        foreach ($productData['colors'] as $colorData) {
+        foreach ($productData['product']['detail']['colors'] as $colorData) {
             $colors[$colorData['id']] = $colorData['name'];
         }
 
@@ -38,7 +38,7 @@ class ZaraParser implements ParserInterface
         $productData = $this->getProductData($link);
         $sizes = [];
 
-        foreach ($productData['colors'] as $colorData) {
+        foreach ($productData['product']['detail']['colors'] as $colorData) {
 
             if ($colorData['name'] !== $color) {
                 continue;
@@ -61,7 +61,7 @@ class ZaraParser implements ParserInterface
         $productData = $this->getProductData($link);
         $result = false;
 
-        foreach ($productData['colors'] as $colorData) {
+        foreach ($productData['product']['detail']['colors'] as $colorData) {
 
             if ($colorData['name'] !== $color) {
                 continue;
@@ -88,7 +88,7 @@ class ZaraParser implements ParserInterface
         try {
 
             $html = file_get_contents($link);
-            $productJson = $this->parserHelper->getSubstringBetweenTwoSubstrings($html, 'product: ', 'originalProductId:');
+            $productJson = $this->parserHelper->getSubstringBetweenTwoSubstrings($html, 'window.zara.viewPayload = ', ';</script>');
             $productJson = rtrim(rtrim($productJson), ',');
             $productData = json_decode($productJson, true);
 

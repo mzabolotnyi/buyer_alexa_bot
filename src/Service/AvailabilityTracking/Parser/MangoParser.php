@@ -62,7 +62,7 @@ class MangoParser implements ParserInterface
         try {
 
             $html = file_get_contents($link);
-            $productJson = $this->parserHelper->getSubstringBetweenTwoSubstrings($html, 'var dataLayerV2Json = ', '</script>');
+            $productJson = $this->parserHelper->getSubstringBetweenTwoSubstrings($html, 'var dataLayerV2Json = ', 'var dataLayer');
             $productJson = rtrim(rtrim($productJson), ';');
             $productData = json_decode($productJson, true);
 
