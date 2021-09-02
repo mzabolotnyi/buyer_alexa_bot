@@ -92,7 +92,7 @@ class TrackingManager
         return $this->getParser($link) instanceof ParserInterface;
     }
 
-    private function getParser($link, $throwException = true): ?ParserInterface
+    private function getParser($link): ?ParserInterface
     {
         foreach ($this->parsers as $parser) {
             if ($parser->supports($link)) {
@@ -100,10 +100,6 @@ class TrackingManager
             }
         }
 
-        if ($throwException) {
-            throw new \RuntimeException("Could not find parser: $link");
-        }
-
-        return null;
+        throw new \RuntimeException("Could not find parser: $link");
     }
 }

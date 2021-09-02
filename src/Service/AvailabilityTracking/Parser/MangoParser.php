@@ -4,14 +4,6 @@ namespace App\Service\AvailabilityTracking\Parser;
 
 class MangoParser implements ParserInterface
 {
-    /** @var ParserHelper */
-    private $parserHelper;
-
-    public function __construct(ParserHelper $parserHelper)
-    {
-        $this->parserHelper = $parserHelper;
-    }
-
     public function supports(string $link): bool
     {
         $supportedDomains = ['shop.mango.com', 'mangooutlet.com'];
@@ -62,7 +54,7 @@ class MangoParser implements ParserInterface
         try {
 
             $html = file_get_contents($link);
-            $productJson = $this->parserHelper->getSubstringBetweenTwoSubstrings($html, 'var dataLayerV2Json = ', 'var dataLayer');
+            $productJson = ParserHelper::getSubstringBetweenTwoSubstrings($html, 'var dataLayerV2Json = ', 'var dataLayer');
             $productJson = rtrim(rtrim($productJson), ';');
             $productData = json_decode($productJson, true);
 

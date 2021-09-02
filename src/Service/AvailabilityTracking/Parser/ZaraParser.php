@@ -4,14 +4,6 @@ namespace App\Service\AvailabilityTracking\Parser;
 
 class ZaraParser implements ParserInterface
 {
-    /** @var ParserHelper */
-    private $parserHelper;
-
-    public function __construct(ParserHelper $parserHelper)
-    {
-        $this->parserHelper = $parserHelper;
-    }
-
     public function supports(string $link): bool
     {
         return strpos($link, 'zara.com') !== false;
@@ -88,7 +80,7 @@ class ZaraParser implements ParserInterface
         try {
 
             $html = file_get_contents($link);
-            $productJson = $this->parserHelper->getSubstringBetweenTwoSubstrings($html, 'window.zara.viewPayload = ', ';</script>');
+            $productJson = ParserHelper::getSubstringBetweenTwoSubstrings($html, 'window.zara.viewPayload = ', ';</script>');
             $productJson = rtrim(rtrim($productJson), ',');
             $productData = json_decode($productJson, true);
 

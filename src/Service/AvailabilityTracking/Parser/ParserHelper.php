@@ -4,7 +4,7 @@ namespace App\Service\AvailabilityTracking\Parser;
 
 class ParserHelper
 {
-    function getSubstringBetweenTwoSubstrings($string, $start, $end)
+    static function getSubstringBetweenTwoSubstrings($string, $start, $end)
     {
         $substringStart = strpos($string, $start);
         $substringStart += strlen($start);
